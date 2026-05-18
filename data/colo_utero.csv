@@ -1,0 +1,8 @@
+Estado,Ano,Hospital,Faixa_Etaria,Tempo_Tratamento,Pacientes
+RS,2022,Hospital Conceição,20-29,45,120
+SP,2022,HCPA,30-39,62,300
+RJ,2023,INCA,40-49,38,180
+MG,2023,Hospital São Vicente de Paulo,50-59,71,210
+BA,2024,Hospital Israelita Albert Einstein ,60+,55,140
+RS,2024,Hospital Conceição,30-39,49,130
+SP,2024,Hospital Sírio-Libanês,40-49,66,280

@@ -1,0 +1,13 @@
+Estado,Ano,Hospital,Tipo,Sexo,Faixa_Etaria,Casos
+SP,2022,Hospital das Clínicas,Leucemia,M,0-4,24
+SP,2022,Hospital das Clínicas,Linfoma,F,10-14,18
+RJ,2022,INCA,Neuroblastoma,M,0-4,12
+MG,2022,Hospital da Baleia,Sarcoma Ósseo,F,15-19,9
+BA,2023,Hospital Martagão Gesteira,Leucemia,F,5-9,27
+RS,2023,Hospital de Clínicas,Meduloblastoma,M,5-9,14
+PR,2023,Hospital Pequeno Príncipe,Sarcoma de Ewing,F,10-14,11
+SP,2024,Hospital Sírio-Libanês,Leucemia,M,10-14,33
+RJ,2024,INCA,Linfoma,F,15-19,20
+MG,2024,Hospital das Clínicas,Neuroblastoma,M,0-4,16
+BA,2024,Hospital Martagão Gesteira,Sarcoma Ósseo,F,15-19,13
+RS,2024,Hospital de Clínicas,Meduloblastoma,F,5-9,18
