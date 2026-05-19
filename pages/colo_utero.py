@@ -1,9 +1,22 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import pydeck as pdk
 import sys
 from pathlib import Path
+
+# Import visual libs with graceful fallback so the app shows
+# a helpful message instead of crashing when a dependency is
+# missing in the deployment environment.
+try:
+    import plotly.express as px
+except Exception as _e:  # pragma: no cover - runtime dependency
+    px = None
+    plotly_import_error = _e
+
+try:
+    import pydeck as pdk
+except Exception as _e:  # pragma: no cover - runtime dependency
+    pdk = None
+    pdk_import_error = _e
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -215,37 +228,65 @@ if {"Latitude", "Longitude"}.issubset(df_filtrado.columns) and not df_filtrado.e
     mapa_df["Tempo_Medio"] = mapa_df["Tempo_Medio"].round(1)
     mapa_df["Raio"] = mapa_df["Pacientes"].clip(lower=80) * 120
 
-    view_state = pdk.ViewState(
-        latitude=float(mapa_df["Latitude"].mean()),
-        longitude=float(mapa_df["Longitude"].mean()),
-        zoom=4,
-        pitch=35,
-    )
+    # Prefer pydeck when available (better performance). If not, try folium + streamlit_folium.
+    if pdk is not None:
+        view_state = pdk.ViewState(
+            latitude=float(mapa_df["Latitude"].mean()),
+            longitude=float(mapa_df["Longitude"].mean()),
+            zoom=4,
+            pitch=35,
+        )
 
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=mapa_df,
-        get_position="[Longitude, Latitude]",
-        get_radius="Raio",
-        get_fill_color="[45, 212, 191, 145]",
-        get_line_color="[229, 237, 247, 210]",
-        line_width_min_pixels=1,
-        pickable=True,
-        auto_highlight=True,
-    )
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=mapa_df,
+            get_position="[Longitude, Latitude]",
+            get_radius="Raio",
+            get_fill_color="[45, 212, 191, 145]",
+            get_line_color="[229, 237, 247, 210]",
+            line_width_min_pixels=1,
+            pickable=True,
+            auto_highlight=True,
+        )
 
-    st.pydeck_chart(
-        pdk.Deck(
-            map_style=pdk.map_styles.CARTO_DARK,
-            initial_view_state=view_state,
-            layers=[layer],
-            tooltip={
-                "html": "<b>{Estado}</b><br/>Pacientes: {Pacientes}<br/>Tempo médio: {Tempo_Medio} dias",
-                "style": {"backgroundColor": "#121a2e", "color": "#e5edf7"},
-            },
-        ),
-        width="stretch",
-    )
+        st.pydeck_chart(
+            pdk.Deck(
+                map_style=pdk.map_styles.CARTO_DARK,
+                initial_view_state=view_state,
+                layers=[layer],
+                tooltip={
+                    "html": "<b>{Estado}</b><br/>Pacientes: {Pacientes}<br/>Tempo médio: {Tempo_Medio} dias",
+                    "style": {"backgroundColor": "#121a2e", "color": "#e5edf7"},
+                },
+            ),
+            width="stretch",
+        )
+    else:
+        try:
+            import folium
+            from streamlit_folium import st_folium
+        except Exception as _e:
+            st.error(
+                "Nem `pydeck` nem `folium` estão disponíveis neste ambiente. Instale `pydeck` ou `streamlit-folium`/`folium` e redeploy."
+            )
+        else:
+            center_lat = float(mapa_df["Latitude"].mean())
+            center_lon = float(mapa_df["Longitude"].mean())
+            m = folium.Map(location=[center_lat, center_lon], tiles="CartoDB dark_matter", zoom_start=4)
+
+            max_pac = mapa_df["Pacientes"].max() if not mapa_df["Pacientes"].empty else 1
+            for _, r in mapa_df.iterrows():
+                radius = max(6, (r["Pacientes"] / max_pac) * 30)
+                folium.CircleMarker(
+                    location=[r["Latitude"], r["Longitude"]],
+                    radius=radius,
+                    color="#2dd4bf",
+                    fill=True,
+                    fill_opacity=0.7,
+                    popup=folium.Popup(f"{r['Estado']}: {int(r['Pacientes'])} pacientes<br>Tempo médio: {r['Tempo_Medio']} dias", max_width=300),
+                ).add_to(m)
+
+            st_folium(m, width=700, height=450)
 else:
     st.info(
         "O mapa interativo exige colunas `Latitude` e `Longitude`. "
@@ -260,25 +301,30 @@ st.divider()
 
 st.subheader("⏳ Tempo Médio até Tratamento")
 
-fig1 = px.bar(
-    df_filtrado,
-    x="Estado",
-    y="Tempo_Tratamento",
-    color="Estado",
-    text="Tempo_Tratamento",
-    color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa"],
-)
+if px is None:
+    st.error(
+        "A biblioteca `plotly` não está disponível neste ambiente. Instale `plotly` ou atualize `requirements.txt` e redeploy. Os gráficos interativos não serão mostrados."
+    )
+else:
+    fig1 = px.bar(
+        df_filtrado,
+        x="Estado",
+        y="Tempo_Tratamento",
+        color="Estado",
+        text="Tempo_Tratamento",
+        color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa"],
+    )
 
-fig1.update_layout(
-    yaxis_title="Dias",
-    xaxis_title="Estado",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#e5edf7",
-    legend_title_text="Estado",
-)
+    fig1.update_layout(
+        yaxis_title="Dias",
+        xaxis_title="Estado",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#e5edf7",
+        legend_title_text="Estado",
+    )
 
-st.plotly_chart(fig1, width="stretch")
+    st.plotly_chart(fig1, width="stretch")
 
 # ---------------------------------------------------
 # GRÁFICO 2
@@ -286,23 +332,26 @@ st.plotly_chart(fig1, width="stretch")
 
 st.subheader("📈 Evolução por Ano")
 
-fig2 = px.line(
-    df_filtrado,
-    x="Ano",
-    y="Pacientes",
-    color="Estado",
-    markers=True,
-    color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa"],
-)
+if px is None:
+    st.info("Gráficos de evolução não estão disponíveis sem `plotly`.")
+else:
+    fig2 = px.line(
+        df_filtrado,
+        x="Ano",
+        y="Pacientes",
+        color="Estado",
+        markers=True,
+        color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa"],
+    )
 
-fig2.update_layout(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#e5edf7",
-    legend_title_text="Estado",
-)
+    fig2.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#e5edf7",
+        legend_title_text="Estado",
+    )
 
-st.plotly_chart(fig2, width="stretch")
+    st.plotly_chart(fig2, width="stretch")
 
 # ---------------------------------------------------
 # TABELA
