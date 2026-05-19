@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import sys
 from pathlib import Path
+
+try:
+    import plotly.express as px
+except Exception as _e:  # pragma: no cover - runtime dependency
+    px = None
+    plotly_import_error = _e
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -133,39 +138,47 @@ with col4:
 st.divider()
 
 st.subheader("📊 Distribuição por Tipo de Diagnóstico")
-fig = px.pie(
-    df_filtrado.groupby("Tipo", as_index=False)["Casos"].sum(),
-    names="Tipo",
-    values="Casos",
-    hole=0.46,
-    color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa", "#22c55e"],
-)
-fig.update_layout(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#e5edf7",
-    legend_title_text="Tipo",
-)
-st.plotly_chart(fig, width="stretch")
+if px is None:
+    st.error(
+        "A biblioteca `plotly` não está disponível neste ambiente. Instale `plotly` ou atualize `requirements.txt` e redeploy. Os gráficos interativos não serão mostrados."
+    )
+else:
+    fig = px.pie(
+        df_filtrado.groupby("Tipo", as_index=False)["Casos"].sum(),
+        names="Tipo",
+        values="Casos",
+        hole=0.46,
+        color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa", "#22c55e"],
+    )
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#e5edf7",
+        legend_title_text="Tipo",
+    )
+    st.plotly_chart(fig, width="stretch")
 
 st.subheader("📈 Evolução anual")
-fig2 = px.bar(
-    df_filtrado.groupby(["Ano", "Tipo"], as_index=False)["Casos"].sum(),
-    x="Ano",
-    y="Casos",
-    color="Tipo",
-    barmode="group",
-    color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa", "#22c55e"],
-)
-fig2.update_layout(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#e5edf7",
-    legend_title_text="Tipo",
-    xaxis_title="Ano",
-    yaxis_title="Casos",
-)
-st.plotly_chart(fig2, width="stretch")
+if px is None:
+    st.info("Gráficos de evolução não estão disponíveis sem `plotly`.")
+else:
+    fig2 = px.bar(
+        df_filtrado.groupby(["Ano", "Tipo"], as_index=False)["Casos"].sum(),
+        x="Ano",
+        y="Casos",
+        color="Tipo",
+        barmode="group",
+        color_discrete_sequence=["#2dd4bf", "#60a5fa", "#fb7185", "#fbbf24", "#a78bfa", "#22c55e"],
+    )
+    fig2.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#e5edf7",
+        legend_title_text="Tipo",
+        xaxis_title="Ano",
+        yaxis_title="Casos",
+    )
+    st.plotly_chart(fig2, width="stretch")
 
 st.subheader("📋 Tabela de casos")
 st.dataframe(df_filtrado.reset_index(drop=True), width="stretch")
